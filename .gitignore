@@ -1,0 +1,7 @@
+.vscode
+*.iml
+__pycache__
+dist
+*.egg-info/
+build/
+MANIFEST
