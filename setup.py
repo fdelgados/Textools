@@ -12,7 +12,7 @@ setup(
     description="Tools for cleaning and preprocessing text",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/fdelgados/EmagisterAPI.git",
+    url="https://github.com/fdelgados/Textools.git",
     classifiers=[
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: MIT License",
