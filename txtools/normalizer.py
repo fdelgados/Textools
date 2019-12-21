@@ -121,6 +121,7 @@ def clean_text(text: str) -> str:
     text = remove_unicode_nbsp(text)
     text = remove_control_chars(text)
     text = remove_extra_quotation(text)
+    text = remove_non_words(text)
     text = remove_extra_whitespaces(text)
 
     return remove_html_tags(text)
@@ -176,3 +177,11 @@ def decode_html_entities(text: str) -> str:
     :return: Clean text
     """
     return html.unescape(text)
+
+
+def remove_non_words(text: str) -> str:
+    """ Removes non words
+    :param text: Text to be cleaned
+    :return: Clean text
+    """
+    return ' '.join(re.split(r'[\W_]+', text))
