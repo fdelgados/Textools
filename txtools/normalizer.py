@@ -1,23 +1,18 @@
 import re
-import string
-import datetime
-from typing import List, Union
-
-from .cleaners import decode_html_entities
+import html
 import unicodedata
-import spacy
+from typing import List, Tuple
 import nltk
-from nltk.tokenize import word_tokenize
-from nltk.corpus import stopwords
-from nltk.stem.porter import PorterStemmer
-from nltk.stem.snowball import SnowballStemmer
-import contractions
+from nltk.corpus import stopwords, wordnet
+from nltk.stem import WordNetLemmatizer
+from sklearn.base import BaseEstimator, TransformerMixin
 
 nltk.download('punkt')
 nltk.download('stopwords')
+nltk.download('averaged_perceptron_tagger')
 
 
-class TextNormalizer:
+class TextNormalizer(BaseEstimator, TransformerMixin):
     ALLOWED_LANGUAGES = {'en': 'english',
                          'es': 'spanish',
                          'fr': 'french',
@@ -29,14 +24,24 @@ class TextNormalizer:
     NON_WORD_PATTERN = r'[\W_]+'
 
     def __init__(self, language: str = None):
+        """
+        :param language: Two letter language code. ISO 639-1: https://en.wikipedia.org/wiki/ISO_639-1
+        :raises ValueError: Raises an exception if the language code is not valid
+        """
         if not language:
             language = self.DEFAULT_LANGUAGE
 
         self.__guard_against_not_allowed_language__(language)
 
         self.language = language
+        self.stopwords = set(stopwords.words(self.ALLOWED_LANGUAGES[self.language]))
+        self.lemmatizer = WordNetLemmatizer()
 
-    def __guard_against_not_allowed_language__(self, language):
+    def __guard_against_not_allowed_language__(self, language: str):
+        """ Raises an exception if the language code is not valid
+        :param language: Two letter language code. ISO 639-1: https://en.wikipedia.org/wiki/ISO_639-1
+        :raises ValueError
+        """
         if language not in self.ALLOWED_LANGUAGES.keys():
             allowed_languages = [allowed_language.capitalize() for allowed_language in self.ALLOWED_LANGUAGES.values()]
             allowed_languages = ', '.join(allowed_languages)
@@ -44,158 +49,130 @@ class TextNormalizer:
             raise ValueError('{} is not an allowed language. Allowed languages are: {}.'.format(language.capitalize(),
                                                                                                 allowed_languages))
 
-    def normalize(self,
-                  corpus: List[str],
-                  lemmatize: bool = False,
-                  stem: bool = False,
-                  remove_digits: bool = True,
-                  remove_accents: bool = False,
-                  tokenize: bool = False,
-                  only_text_chars: bool = False,
-                  silent: bool = True) -> List[str]:
+    @staticmethod
+    def is_punct(token: str) -> bool:
+        """ Checks if all chars in token are punctuation symbols
+        :param token: Token
+        :return: True if all chars in token are punctuation symbols, False otherwise
+        """
+        return all(unicodedata.category(char).startswith('P') for char in token)
 
-        normalized_corpus = []
+    def is_stopword(self, token: str) -> bool:
+        """ Checks if token is a stop word
+        :param token: Token
+        :return: True if token is a stop word, False otherwise
+        """
+        return token.lower() in self.stopwords
 
-        total_length = len(corpus)
-        counter = 1
-        for text in corpus:
-            normalized_text = self.normalize_text(text,
-                                                  lemmatize,
-                                                  stem,
-                                                  remove_digits,
-                                                  remove_accents,
-                                                  tokenize,
-                                                  only_text_chars)
+    def normalize(self, text: str) -> List[str]:
+        """ Normalize text
+        :param text: Text to be normalized
+        :return: List of normalized tokens
+        """
 
-            normalized_corpus.append(normalized_text)
-            now = datetime.datetime.now()
+        sentences = self.tokenize(clean_text(text))
 
-            if not silent:
-                print('[{}] Normalizing {}/{}'.format(now.strftime('%Y-%m-%d %H:%M:%S'), counter, total_length))
+        return [
+            self.lemmatize(token, tag).lower()
+            for sentence in sentences
+            for (token, tag) in sentence
+            if not TextNormalizer.is_punct(token) and not self.is_stopword(token)
+        ]
 
-            counter += 1
+    def tokenize(self, text: str) -> List[Tuple[str, str]]:
+        """ Splits text in a list of tuples composed by token and his part of speech tag
+        :param text: Text to be tokenized
+        :return: List of tuples composed by token and his part of speech tag
+        """
+        return [
+            nltk.pos_tag(nltk.wordpunct_tokenize(sentence))
+            for sentence in nltk.sent_tokenize(text, self.ALLOWED_LANGUAGES[self.language])
+        ]
 
-        return normalized_corpus
+    def lemmatize(self, token, pos_tag):
+        """ Lemmatize token
+        :param token: Token
+        :param pos_tag: Part-of-speech tag
+        :return: Lemmatized word
+        """
+        tag = {
+            'N': wordnet.NOUN,
+            'V': wordnet.VERB,
+            'R': wordnet.ADV,
+            'J': wordnet.ADJ
+        }.get(pos_tag[0], wordnet.NOUN)
 
-    def normalize_text(self,
-                       text: str,
-                       lemmatize: bool = False,
-                       stem: bool = False,
-                       remove_digits: bool = True,
-                       remove_accents: bool = False,
-                       tokenize: bool = False,
-                       only_text_chars: bool = False) -> Union[str, List[str]]:
+        return self.lemmatizer.lemmatize(token, tag)
 
-        text = decode_html_entities(text)
+    def fit(self, X, y=None):
+        return self
 
-        if self.language == 'en':
-            text = contractions.fix(text)
+    def transform(self, documents):
+        for document in documents:
+            yield self.normalize(document)
 
-        text = self.__lexical_normalization__(text,
-                                              lemmatize=lemmatize,
-                                              stem=stem)
-        text = self.remove_special_characters(text,
-                                              remove_digits=remove_digits,
-                                              remove_accents=remove_accents)
 
-        if only_text_chars:
-            text = self.__keep_text_characters__(text)
+def clean_text(text: str) -> str:
+    """ Removes unwanted chars from text
+    :param text: Text to be cleaned
+    :return: Clean text
+    """
+    text = decode_html_entities(text)
+    text = remove_unicode_nbsp(text)
+    text = remove_control_chars(text)
+    text = remove_extra_quotation(text)
+    text = remove_extra_whitespaces(text)
 
-        text = self.remove_stop_words(text)
+    return remove_html_tags(text)
 
-        if not tokenize:
-            return text
 
-        return self.tokenize_text(text)
+def remove_html_tags(text: str) -> str:
+    """ Removes html tags
+    :param text: Text to be cleaned
+    :return: Clean text
+    """
+    clean = re.compile(r'<.*?>')
 
-    def __lexical_normalization__(self, text: str, lemmatize: bool, stem: bool) -> str:
-        if lemmatize:
-            return self.lemmatize_text(text)
+    return re.sub(clean, '', text)
 
-        if stem:
-            return self.stem_text(text)
 
-        return text.lower()
+def remove_extra_whitespaces(text: str) -> str:
+    """ Removes extra whitespaces
+    :param text: Text to be cleaned
+    :return: Clean text
+    """
+    return re.sub(r' +', ' ', text)
 
-    def __keep_text_characters__(self, text: str) -> str:
-        tokens = self.tokenize_text(text)
 
-        filtered_tokens = [token for token in tokens if token.isalpha()]
+def remove_extra_quotation(text: str) -> str:
+    """ Removes extra quotation marks
+    :param text: Text to be cleaned
+    :return: Clean text
+    """
+    text = re.sub(r'\"{2,}', '"', text)
 
-        return ' '.join(filtered_tokens)
+    return re.sub(r'\'{2,}', "'", text)
 
-    def stem_text(self, text: str) -> str:
-        if self.language == 'en':
-            stemmer = PorterStemmer()
-        else:
-            stemmer = SnowballStemmer(self.ALLOWED_LANGUAGES[self.language])
 
-        try:
-            tokens = self.tokenize_text(text)
-        except ValueError:
-            print('<<{}>>'.format(text))
-            return ''
+def remove_control_chars(text: str) -> str:
+    """ Removes control chars
+    :param text: Text to be cleaned
+    :return: Clean text
+    """
+    return text.translate(str.maketrans('\n\t\r', '   '))
 
-        stemmed_tokens = [stemmer.stem(token) for token in tokens]
 
-        return ' '.join(stemmed_tokens)
+def remove_unicode_nbsp(text: str) -> str:
+    """ Removes unicode whitespaces
+    :param text: Text to be cleaned
+    :return: Clean text
+    """
+    return text.replace(u'\xa0', u' ')
 
-    def lemmatize_text(self, text: str) -> str:
-        nlp = spacy.load(self.language)
-        tokens = nlp(text)
 
-        lemmatized_tokens = [token.lemma_ for token in tokens]
-        lemmatized_text = ' '.join(lemmatized_tokens)
-
-        return lemmatized_text
-
-    def remove_special_characters(self, text: str, remove_digits: bool = True, remove_accents: bool = False) -> str:
-        try:
-            tokens = self.tokenize_text(text)
-        except ValueError:
-            print('<<{}>>'.format(text))
-            return ''
-
-        punctuation = '{}{}'.format(string.punctuation, '¡¿ºª')
-
-        filtered_tokens = [token.translate(str.maketrans('', '', punctuation)) for token in tokens]
-
-        if remove_digits:
-            filtered_tokens = [token for token in filtered_tokens if re.match(r'^\d+$', token) is None]
-
-        text = ' '.join(filtered_tokens)
-
-        if not remove_accents:
-            return text
-
-        return unicodedata.normalize('NFKD', text).encode('ascii', 'ignore').decode('utf-8', 'ignore')
-
-    def remove_digits(self, text: str) -> str:
-        try:
-            tokens = self.tokenize_text(text)
-        except ValueError:
-            print('<<{}>>'.format(text))
-            return ''
-
-        filtered_tokens = [token for token in tokens if re.match(r'^\d+$', token) is None]
-
-        return ' '.join(filtered_tokens)
-
-    def remove_stop_words(self, text: str) -> str:
-        try:
-            tokens = self.tokenize_text(text)
-        except ValueError:
-            print('<<{}>>'.format(text))
-            return ''
-
-        stop_words = stopwords.words(self.ALLOWED_LANGUAGES[self.language])
-
-        filtered_tokens = [token for token in tokens if token not in stop_words]
-
-        return ' '.join(filtered_tokens)
-
-    def tokenize_text(self, text: str) -> List[str]:
-        if not text:
-            raise ValueError('The text to be preprocessed can not be empty.')
-
-        return word_tokenize(text, language=self.ALLOWED_LANGUAGES[self.language])
+def decode_html_entities(text: str) -> str:
+    """ Converts html entities in the corresponding unicode string
+    :param text: Text to be cleaned
+    :return: Clean text
+    """
+    return html.unescape(text)

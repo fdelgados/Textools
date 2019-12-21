@@ -4,9 +4,9 @@ with open("README.md", "r") as fh:
     long_description = fh.read()
 
 setup(
-    name="textools",
+    name="texcptulz",
     packages=['txtools',],
-    version="0.1.0",
+    version="0.2.1",
     author="Cisco Delgado",
     author_email="fdelgados@gmail.com",
     description="Tools for cleaning and preprocessing text",
@@ -19,5 +19,5 @@ setup(
         "Operating System :: OS Independent",
     ],
     python_requires='>=3.6',
-    install_requires=['nltk', 'spacy', 'contractions']
+    install_requires=['nltk', 'scikit-learn']
 )
