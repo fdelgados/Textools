@@ -110,6 +110,7 @@ for idx, document in enumerate(documents):
     print('Document {} is written in {}'.format(idx, lang_detector.lang(document)))
 
 # output
+# Document 0 is written in Spanish
 # Document 1 is written in English
 # Document 2 is written in Italian
 # Document 3 is written in French
@@ -165,7 +166,7 @@ print(sims)
 #  [0.02665992 0.00331377 0.0069054  1.        ]]
 ```
 
-### Using a scikit-leann pipeline
+### Using a scikit-learn pipeline
 `TextNormalizer`, `OneHotVectorizer`, `KMeansClusters` and `Similarity` implement the `Transformer` interface, so we can
 add them to a scikit-learn pipeline.
 
