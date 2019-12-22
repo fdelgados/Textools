@@ -126,6 +126,7 @@ def clean_text(text: str) -> str:
     text = remove_extra_quotation(text)
     text = remove_non_words(text)
     text = remove_extra_whitespaces(text)
+    text = remove_urls(text)
 
     return remove_html_tags(text)
 
@@ -188,3 +189,18 @@ def remove_non_words(text: str) -> str:
     :return: Clean text
     """
     return ' '.join(re.split(r'[\W_]+', text))
+
+
+def remove_urls(text):
+    """ Removes all urls from text
+    :param text: The string being searched and replaced on
+    :return: Text without the urls
+    """
+    url_regex = r'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+'
+
+    detected_urls = re.findall(url_regex, text)
+    for url in detected_urls:
+        text = text.replace(url, '')
+
+    return text
+
