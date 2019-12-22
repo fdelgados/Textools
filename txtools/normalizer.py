@@ -120,15 +120,16 @@ def clean_text(text: str) -> str:
     :param text: Text to be cleaned
     :return: Clean text
     """
+    text = remove_html_tags(text)
     text = decode_html_entities(text)
     text = remove_unicode_nbsp(text)
     text = remove_control_chars(text)
     text = remove_extra_quotation(text)
-    text = remove_non_words(text)
+    text = remove_non_ascii(text)
     text = remove_extra_whitespaces(text)
     text = remove_urls(text)
 
-    return remove_html_tags(text)
+    return text
 
 
 def remove_html_tags(text: str) -> str:
@@ -183,12 +184,12 @@ def decode_html_entities(text: str) -> str:
     return html.unescape(text)
 
 
-def remove_non_words(text: str) -> str:
-    """ Removes non words
+def remove_non_ascii(text: str) -> str:
+    """ Removes non ascii characters
     :param text: Text to be cleaned
     :return: Clean text
     """
-    return ' '.join(re.split(r'[\W_]+', text))
+    return ' '.join([char for char in text if char.isascii()])
 
 
 def remove_urls(text):

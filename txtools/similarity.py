@@ -1,18 +1,29 @@
 import numpy as np
 from gensim import corpora, models, similarities
 from sklearn.base import BaseEstimator, TransformerMixin
+from .normalizer import TextNormalizer
 
 
 class Similarity(BaseEstimator, TransformerMixin):
-    def __init__(self):
+    DEFAULT_LANGUAGE = 'en'
+
+    def __init__(self, normalize: bool = True, lang: str = None):
+        if not lang:
+            lang = self.DEFAULT_LANGUAGE
+
+        self.lang = lang
+        self.normalize = normalize
         self.model = models.TfidfModel
         self.similarity_matrix = similarities.MatrixSimilarity
 
-    def fit(self, documents):
+    def fit(self, tokens):
         return self
 
     def transform(self, documents):
         sims = np.empty((0, len(documents)), dtype=float)
+
+        if self.normalize:
+            documents = self.normalize_documents(documents)
 
         dictionary = corpora.Dictionary(documents)
         num_features = len(dictionary.token2id)
@@ -27,3 +38,8 @@ class Similarity(BaseEstimator, TransformerMixin):
             sims = np.append(sims, [sim], axis=0)
 
         return sims
+
+    def normalize_documents(self, documents):
+        text_normalizer = TextNormalizer(self.lang)
+
+        return [text_normalizer.normalize(document) for document in documents]
