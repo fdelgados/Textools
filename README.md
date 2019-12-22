@@ -1,6 +1,7 @@
 # Text Clean and Preprocess Tools (texcptulz)
 [![made-with-python](https://img.shields.io/badge/Made%20with-Python-1f425f.svg)](https://www.python.org/)
-![GitHub release (latest by date)](https://img.shields.io/github/v/release/fdelgados/Textools?style=plastic)
+![GitHub release (latest by date)](https://img.shields.io/github/v/release/fdelgados/Textools?style=flat)
+
 textcptulz is a text preprocessing framework to transform raw ingested text into a form that is ready for computation and modeling.
 
 ## Table of Contents
