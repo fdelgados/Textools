@@ -189,7 +189,7 @@ def remove_non_ascii(text: str) -> str:
     :param text: Text to be cleaned
     :return: Clean text
     """
-    return ' '.join([char for char in text if char.isascii()])
+    return ''.join(char for char in text if ord(char) < 128)
 
 
 def remove_urls(text):
