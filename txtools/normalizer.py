@@ -64,13 +64,17 @@ class TextNormalizer(BaseEstimator, TransformerMixin):
         """
         return token.lower() in self.stopwords
 
-    def normalize(self, text: str) -> List[str]:
+    def normalize(self, text: str, clean: bool = False) -> List[str]:
         """ Normalize text
         :param text: Text to be normalized
+        :param clean: Whether or not text has to be cleaned
         :return: List of normalized tokens
         """
 
-        sentences = self.tokenize(clean_text(text))
+        if clean:
+            text = clean_text(text)
+
+        sentences = self.tokenize(text)
 
         return [
             self.lemmatize(token, tag).lower()
