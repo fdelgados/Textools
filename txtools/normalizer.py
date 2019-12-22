@@ -112,8 +112,7 @@ class TextNormalizer(BaseEstimator, TransformerMixin):
         return self
 
     def transform(self, documents):
-        for document in documents:
-            yield self.normalize(document)
+        return [self.normalize(doc) for doc in documents]
 
 
 def clean_text(text: str) -> str:
