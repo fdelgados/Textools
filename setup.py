@@ -6,7 +6,7 @@ with open("README.md", "r") as fh:
 setup(
     name="texcptulz",
     packages=['txtools',],
-    version="0.3.5",
+    version="0.4.0",
     author="Cisco Delgado",
     author_email="fdelgados@gmail.com",
     description="Tools for cleaning and preprocessing text",
@@ -19,5 +19,5 @@ setup(
         "Operating System :: OS Independent",
     ],
     python_requires='>=3.6',
-    install_requires=['nltk', 'scikit-learn']
+    install_requires=['nltk', 'scikit-learn', 'spacy', 'spacy-langdetect', 'gensim', 'numpy']
 )
