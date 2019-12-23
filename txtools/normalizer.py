@@ -10,6 +10,7 @@ from sklearn.base import BaseEstimator, TransformerMixin
 nltk.download('punkt')
 nltk.download('stopwords')
 nltk.download('averaged_perceptron_tagger')
+nltk.download('wordnet')
 
 
 class TextNormalizer(BaseEstimator, TransformerMixin):
