@@ -186,7 +186,7 @@ documents = [
 
 model = Pipeline([
     ('norm', TextNormalizer()),
-    ('sim', Similarity(normalize=False))
+    ('sim', Similarity())
 ])
 
 sims = model.fit_transform(documents)

@@ -7,12 +7,11 @@ from .normalizer import TextNormalizer
 class Similarity(BaseEstimator, TransformerMixin):
     DEFAULT_LANGUAGE = 'en'
 
-    def __init__(self, normalize: bool = True, lang: str = None):
+    def __init__(self, lang: str = None):
         if not lang:
             lang = self.DEFAULT_LANGUAGE
 
         self.lang = lang
-        self.normalize = normalize
         self.model = models.TfidfModel
         self.similarity_matrix = similarities.MatrixSimilarity
 
@@ -22,7 +21,7 @@ class Similarity(BaseEstimator, TransformerMixin):
     def transform(self, documents):
         sims = np.empty((0, len(documents)), dtype=float)
 
-        if self.normalize:
+        if not self.documents_are_tokenized(documents):
             documents = self.normalize_documents(documents)
 
         dictionary = corpora.Dictionary(documents)
@@ -43,3 +42,6 @@ class Similarity(BaseEstimator, TransformerMixin):
         text_normalizer = TextNormalizer(self.lang)
 
         return [text_normalizer.normalize(document) for document in documents]
+
+    def documents_are_tokenized(self, documents):
+        return all(isinstance(document, np.ndarray) for document in documents)

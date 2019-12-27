@@ -1,6 +1,7 @@
 import re
 import html
 import unicodedata
+import numpy as np
 from typing import List, Tuple
 import nltk
 from nltk.corpus import stopwords, wordnet
@@ -65,11 +66,11 @@ class TextNormalizer(BaseEstimator, TransformerMixin):
         """
         return token.lower() in self.stopwords
 
-    def normalize(self, text: str, clean: bool = False) -> List[str]:
+    def normalize(self, text: str, clean: bool = False) -> np.ndarray:
         """ Normalize text
         :param text: Text to be normalized
         :param clean: Whether or not text has to be cleaned
-        :return: List of normalized tokens
+        :return: Array of normalized tokens
         """
 
         if clean:
@@ -77,12 +78,12 @@ class TextNormalizer(BaseEstimator, TransformerMixin):
 
         sentences = self.tokenize(text)
 
-        return [
+        return np.array([
             self.lemmatize(token, tag).lower()
             for sentence in sentences
             for (token, tag) in sentence
             if not TextNormalizer.is_punct(token) and not self.is_stopword(token)
-        ]
+        ])
 
     def tokenize(self, text: str) -> List[Tuple[str, str]]:
         """ Splits text in a list of tuples composed by token and his part of speech tag
