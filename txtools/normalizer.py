@@ -1,3 +1,4 @@
+import sys
 import re
 import html
 import unicodedata
@@ -117,19 +118,30 @@ class TextNormalizer(BaseEstimator, TransformerMixin):
         return [self.normalize(doc) for doc in documents]
 
 
-def clean_text(text: str) -> str:
+def clean_text(text: str, cleaners: List[str] = None, exclude: List[str] = None) -> str:
     """ Removes unwanted chars from text
+
     :param text: Text to be cleaned
+    :param cleaners: List of cleaners to be applied to text
+    :param exclude: List of cleaners that wont be applied
     :return: Clean text
     """
-    text = remove_html_tags(text)
-    text = decode_html_entities(text)
-    text = remove_unicode_nbsp(text)
-    text = remove_control_chars(text)
-    text = remove_extra_quotation(text)
-    text = remove_non_ascii(text)
-    text = remove_extra_whitespaces(text)
-    text = remove_urls(text)
+    if not cleaners:
+        cleaners = ['html_tags', 'html_entities', 'unicode_nbsp', 'tabs', 'new_line'
+                    'extra_quotation', 'non_ascii', 'extra_whitespaces', 'urls']
+
+    if exclude:
+        cleaners = [cleaner for cleaner in cleaners if cleaner not in exclude]
+
+    for cleaner in cleaners:
+        cleaner_func_name = 'remove_{}'.format(cleaner)
+        try:
+            cleaner_function = getattr(sys.modules[__name__], cleaner_func_name)
+        except AttributeError:
+            continue
+
+        print(cleaner_func_name)
+        text = cleaner_function(text)
 
     return text
 
@@ -162,12 +174,20 @@ def remove_extra_quotation(text: str) -> str:
     return re.sub(r'\'{2,}', "'", text)
 
 
-def remove_control_chars(text: str) -> str:
+def remove_new_line(text: str) -> str:
     """ Removes control chars
     :param text: Text to be cleaned
     :return: Clean text
     """
-    return text.translate(str.maketrans('\n\t\r', '   '))
+    return text.translate(str.maketrans('\n\r', '  '))
+
+
+def remove_tabs(text: str) -> str:
+    """ Removes control chars
+    :param text: Text to be cleaned
+    :return: Clean text
+    """
+    return text.replace('\t', ' ')
 
 
 def remove_unicode_nbsp(text: str) -> str:
@@ -178,7 +198,7 @@ def remove_unicode_nbsp(text: str) -> str:
     return text.replace(u'\xa0', u' ')
 
 
-def decode_html_entities(text: str) -> str:
+def remove_html_entities(text: str) -> str:
     """ Converts html entities in the corresponding unicode string
     :param text: Text to be cleaned
     :return: Clean text
