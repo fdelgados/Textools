@@ -6,7 +6,7 @@ with open("README.md", "r") as fh:
 setup(
     name="texcptulz",
     packages=['txtools',],
-    version="0.6.4",
+    version="0.6.5",
     author="Cisco Delgado",
     author_email="fdelgados@gmail.com",
     description="Tools for cleaning and preprocessing text",

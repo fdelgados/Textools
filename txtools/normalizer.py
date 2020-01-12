@@ -140,7 +140,6 @@ def clean_text(text: str, cleaners: List[str] = None, exclude: List[str] = None)
         except AttributeError:
             continue
 
-        print(cleaner_func_name)
         text = cleaner_function(text)
 
     return text
