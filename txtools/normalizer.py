@@ -175,7 +175,7 @@ def remove_extra_quotation(text: str) -> str:
 
 
 def remove_new_line(text: str) -> str:
-    """ Removes control chars
+    """ Removes new line chars
     :param text: Text to be cleaned
     :return: Clean text
     """
@@ -183,7 +183,7 @@ def remove_new_line(text: str) -> str:
 
 
 def remove_tabs(text: str) -> str:
-    """ Removes control chars
+    """ Removes tabs
     :param text: Text to be cleaned
     :return: Clean text
     """
