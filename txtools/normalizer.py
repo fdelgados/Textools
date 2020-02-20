@@ -3,6 +3,7 @@ import re
 import html
 import unicodedata
 import numpy as np
+import string
 from typing import List, Tuple
 import nltk
 from nltk.corpus import stopwords, wordnet
@@ -128,7 +129,7 @@ def clean_text(text: str, cleaners: List[str] = None, exclude: List[str] = None)
     """
     if not cleaners:
         cleaners = ['html_tags', 'html_entities', 'unicode_nbsp', 'tabs', 'new_line'
-                    'extra_quotation', 'non_ascii', 'extra_whitespaces', 'urls']
+                    'extra_quotation', 'non_ascii', 'extra_whitespaces', 'urls', 'punctuation']
 
     if exclude:
         cleaners = [cleaner for cleaner in cleaners if cleaner not in exclude]
@@ -225,4 +226,18 @@ def remove_urls(text):
         text = text.replace(url, '')
 
     return text
+
+
+def remove_punctuation(text: str) -> str:
+    """ Removes punctuation from text
+    :param text: The string being searched and replaced on
+    :return: Text without the punctuation characters
+    """
+    punctuation = string.punctuation + '¿¡'
+    table = str.maketrans('', '', punctuation)
+    words = text.split()
+
+    stripped = [word.translate(table) for word in words]
+
+    return ' '.join(stripped)
 
