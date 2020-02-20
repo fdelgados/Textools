@@ -1,47 +1,65 @@
-import numpy as np
-from gensim import corpora, models, similarities
+from gensim import models, similarities
+from gensim.corpora import Dictionary
 from sklearn.base import BaseEstimator, TransformerMixin
-from .normalizer import TextNormalizer
+from .normalizer import TextNormalizer, clean_text
+
+
+class DocCorpus:
+    '''
+    This is just the iterator from the tutorial with a couple modifications for cleanliness:
+    http://radimrehurek.com/gensim/tut1.html#corpus-streaming-one-document-at-a-time
+    '''
+    def __init__(self, texts, dict):
+        self.texts = texts
+        self.dict = dict
+
+    def __iter__(self):
+        for line in self.texts:
+            yield self.dict.doc2bow(line.lower().split())
 
 
 class Similarity(BaseEstimator, TransformerMixin):
     DEFAULT_LANGUAGE = 'en'
 
-    def __init__(self, lang: str = None):
+    def __init__(self, lang: str = None, clean: bool = False, min_token_frequency: int = None):
         if not lang:
             lang = self.DEFAULT_LANGUAGE
 
         self.lang = lang
         self.model = models.TfidfModel
-        self.similarity_matrix = similarities.MatrixSimilarity
+        self.similarity = similarities.Similarity
+        self.clean = clean
+        self.min_token_frequency = min_token_frequency
+        self.cleaners = ['html_tags', 'html_entities', 'unicode_nbsp', 'non_ascii', 'punctuation']
 
     def fit(self, tokens):
         return self
 
     def transform(self, documents):
-        sims = np.empty((0, len(documents)), dtype=float)
+        if self.clean:
+            documents = self.clean_documents(documents)
 
-        if not self.documents_are_tokenized(documents):
-            documents = self.normalize_documents(documents)
+        dictionary = Dictionary(document.lower().split() for document in documents)
 
-        dictionary = corpora.Dictionary(documents)
-        num_features = len(dictionary.token2id)
-        corpus = [dictionary.doc2bow(document) for document in documents]
+        dictionary = self.filter_tokens(dictionary)
+        dictionary.compactify()
 
-        tfidf = self.model(corpus)
-        index = self.similarity_matrix(tfidf[corpus], num_features=num_features)
+        doc_courpus = DocCorpus(documents, dictionary)
+        tfidf = self.model(doc_courpus)
 
-        for idx, document in enumerate(documents):
-            document_bow = dictionary.doc2bow(document)
-            sim = index[tfidf[document_bow]]
-            sims = np.append(sims, [sim], axis=0)
+        index = self.similarity(corpus=tfidf[doc_courpus], num_features=tfidf.num_nnz, output_prefix='shard')
 
-        return sims
+        return index[tfidf[doc_courpus]]
 
-    def normalize_documents(self, documents):
-        text_normalizer = TextNormalizer(self.lang)
+    def filter_tokens(self, dictionary: Dictionary) -> Dictionary:
+        punct_ids = [tokenid for tokenid, token in dictionary.items() if TextNormalizer.is_punct(token)]
+        dictionary.filter_tokens(punct_ids)
 
-        return [text_normalizer.normalize(document) for document in documents]
+        if self.min_token_frequency and self.min_token_frequency > 1:
+            once_ids = [tokenid for tokenid, docfreq in dictionary.dfs.items() if docfreq < self.min_token_frequency]
+            dictionary.filter_tokens(once_ids)
 
-    def documents_are_tokenized(self, documents):
-        return all(isinstance(document, np.ndarray) for document in documents)
+        return dictionary
+
+    def clean_documents(self, documents):
+        return [clean_text(document, cleaners=self.cleaners) for document in documents]
