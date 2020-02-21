@@ -23,7 +23,8 @@ class TextNormalizer(BaseEstimator, TransformerMixin):
                          'fr': 'french',
                          'de': 'german',
                          'it': 'italian',
-                         'ca': 'catalan'}
+                         'ca': 'catalan',
+                         'pt': 'portuguese'}
     DEFAULT_LANG_CODE = 'en'
 
     LEMMATIZATION = 'lemmatization'
