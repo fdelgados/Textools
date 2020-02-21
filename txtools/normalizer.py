@@ -2,12 +2,13 @@ import sys
 import re
 import html
 import unicodedata
-import numpy as np
 import string
 from typing import List, Tuple
 import nltk
 from nltk.corpus import stopwords, wordnet
 from nltk.stem import WordNetLemmatizer
+from nltk.stem.snowball import SnowballStemmer
+from nltk.tokenize import RegexpTokenizer
 from sklearn.base import BaseEstimator, TransformerMixin
 
 nltk.download('punkt')
@@ -21,37 +22,52 @@ class TextNormalizer(BaseEstimator, TransformerMixin):
                          'es': 'spanish',
                          'fr': 'french',
                          'de': 'german',
-                         'it': 'italian'}
-    DEFAULT_LANGUAGE = 'en'
+                         'it': 'italian',
+                         'ca': 'catalan'}
+    DEFAULT_LANG_CODE = 'en'
 
-    WORD_PATTERN = r'\W+'
-    NON_WORD_PATTERN = r'[\W_]+'
+    LEMMATIZATION = 'lemmatization'
+    STEMMING = 'stemming'
 
-    def __init__(self, language: str = None):
+    DEFAULT_NORMALIZATION_METHOD = 'stemming'
+
+    def __init__(self, method: str = None, lang_code: str = None):
+        """TextNormalizer contructor
+        :param method: Normalization method: stemming or lemmatization
+        :param lang_code: ISO 639-1 code language
         """
-        :param language: Two letter language code. ISO 639-1: https://en.wikipedia.org/wiki/ISO_639-1
-        :raises ValueError: Raises an exception if the language code is not valid
-        """
-        if not language:
-            language = self.DEFAULT_LANGUAGE
+        if method != self.LEMMATIZATION and method != self.STEMMING:
+            raise ValueError('Invalid reduction method')
 
-        self.__guard_against_not_allowed_language__(language)
-
-        self.language = language
-        self.stopwords = set(stopwords.words(self.ALLOWED_LANGUAGES[self.language]))
+        self.language = self.__get_language__(lang_code)
+        self.normalization_method = self.__get_normalization_method__(method)
         self.lemmatizer = WordNetLemmatizer()
+        self.stop_words = stopwords.words(self.language)
 
-    def __guard_against_not_allowed_language__(self, language: str):
-        """ Raises an exception if the language code is not valid
-        :param language: Two letter language code. ISO 639-1: https://en.wikipedia.org/wiki/ISO_639-1
-        :raises ValueError
+    def __get_language__(self, lang_code: str) -> str:
+        """Return the language name from language code
+        :param lang_code: ISO 639-1 code language
+        :return: Language name
+        :raises: ValueError
         """
-        if language not in self.ALLOWED_LANGUAGES.keys():
-            allowed_languages = [allowed_language.capitalize() for allowed_language in self.ALLOWED_LANGUAGES.values()]
-            allowed_languages = ', '.join(allowed_languages)
 
-            raise ValueError('{} is not an allowed language. Allowed languages are: {}.'.format(language.capitalize(),
-                                                                                                allowed_languages))
+        if lang_code not in self.ALLOWED_LANGUAGES.keys():
+            raise ValueError('{} is not a supported language code'.format(lang_code))
+
+        return self.ALLOWED_LANGUAGES[lang_code]
+
+    def __get_normalization_method__(self, normalization_method: str = None):
+        """Returns the normalization method
+        :param normalization_method: Normalization method to check
+        :return: Normalization method
+        """
+        if not normalization_method:
+            return self.DEFAULT_NORMALIZATION_METHOD
+
+        if normalization_method != self.LEMMATIZATION and normalization_method != self.STEMMING:
+            raise ValueError('Invalid normalization method')
+
+        return normalization_method
 
     @staticmethod
     def is_punct(token: str) -> bool:
@@ -66,36 +82,62 @@ class TextNormalizer(BaseEstimator, TransformerMixin):
         :param token: Token
         :return: True if token is a stop word, False otherwise
         """
-        return token.lower() in self.stopwords
+        return token.lower() in self.stop_words
 
-    def normalize(self, text: str, clean: bool = False) -> np.ndarray:
+    def normalize(self, text: str) -> str:
         """ Normalize text
         :param text: Text to be normalized
-        :param clean: Whether or not text has to be cleaned
-        :return: Array of normalized tokens
+        :return: Normalized text
         """
+        text = clean_text(text)
 
-        if clean:
-            text = clean_text(text)
+        if self.normalization_method == self.LEMMATIZATION:
+            return self.normalize_with_lemmatization(text)
+        elif self.normalization_method == self.STEMMING:
+            return self.normalize_with_stemming(text)
 
-        sentences = self.tokenize(text)
+    def normalize_with_lemmatization(self, text: str) -> str:
+        """Return normalized text by lemmatization method
+        :param text: Text to normalize
+        :return: Normalized text
+        """
+        sentences = self.sentence_tokenize(text)
 
-        return np.array([
+        normalized_tokens = [
             self.lemmatize(token, tag).lower()
             for sentence in sentences
             for (token, tag) in sentence
             if not TextNormalizer.is_punct(token) and not self.is_stopword(token)
-        ])
+        ]
 
-    def tokenize(self, text: str) -> List[Tuple[str, str]]:
+        return ' '.join([' '.join(tokens) for tokens in normalized_tokens])
+
+    def sentence_tokenize(self, text: str) -> List[Tuple[str, str]]:
         """ Splits text in a list of tuples composed by token and his part of speech tag
         :param text: Text to be tokenized
         :return: List of tuples composed by token and his part of speech tag
         """
         return [
             nltk.pos_tag(nltk.wordpunct_tokenize(sentence))
-            for sentence in nltk.sent_tokenize(text, self.ALLOWED_LANGUAGES[self.language])
+            for sentence in nltk.sent_tokenize(text, language=self.language)
         ]
+
+    def normalize_with_stemming(self, text: str) -> str:
+        """Normalize text by stemming method
+        :param text: Text to normalize
+        :return: Normalized text
+        """
+        tokenizer = RegexpTokenizer(r'\w+')
+        stemmer = SnowballStemmer(self.language)
+
+        tokens = tokenizer.tokenize(text.lower())
+
+        tokens = [token for token in tokens
+                  if not self.is_stopword(token) and not TextNormalizer.is_punct(token)]
+
+        tokens_stemmed = [stemmer.stem(token) for token in tokens]
+
+        return ' '.join(tokens_stemmed)
 
     def lemmatize(self, token, pos_tag):
         """ Lemmatize token
@@ -121,7 +163,6 @@ class TextNormalizer(BaseEstimator, TransformerMixin):
 
 def clean_text(text: str, cleaners: List[str] = None, exclude: List[str] = None) -> str:
     """ Removes unwanted chars from text
-
     :param text: Text to be cleaned
     :param cleaners: List of cleaners to be applied to text
     :param exclude: List of cleaners that wont be applied
