@@ -4,6 +4,7 @@ import re
 import html
 import unicodedata
 import string
+import binascii
 from typing import List, Tuple
 import nltk
 from contextlib import redirect_stdout
@@ -33,6 +34,7 @@ class TextNormalizer(BaseEstimator, TransformerMixin):
     LEMMATIZATION = 'lemmatization'
     STEMMING = 'stemming'
 
+    DEFAULT_K_SHINGLES = 5
     DEFAULT_NORMALIZATION_METHOD = 'stemming'
 
     def __init__(self, method: str = None, lang_code: str = None):
@@ -125,6 +127,18 @@ class TextNormalizer(BaseEstimator, TransformerMixin):
             nltk.pos_tag(nltk.wordpunct_tokenize(sentence))
             for sentence in nltk.sent_tokenize(text, language=self.language)
         ]
+
+    def create_shingles(self, text: str, unique: bool = True, k_shingles: int = None) -> List[int]:
+        if not k_shingles:
+            k_shingles = self.DEFAULT_K_SHINGLES
+
+        text = text.strip().lower()
+        shingles = [text[head:head + k_shingles] for head in range(0, len(text) - k_shingles)]
+
+        if unique:
+            shingles = set(shingles)
+
+        return [binascii.crc32(shingle.encode('utf8')) & 0xffffffff for shingle in shingles]
 
     def normalize_with_stemming(self, text: str) -> str:
         """Normalize text by stemming method
