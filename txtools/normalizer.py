@@ -14,10 +14,10 @@ from nltk.tokenize import RegexpTokenizer
 from sklearn.base import BaseEstimator, TransformerMixin
 
 with redirect_stdout(open(os.devnull, "w")):
-    nltk.download('punkt')
-    nltk.download('stopwords')
-    nltk.download('averaged_perceptron_tagger')
-    nltk.download('wordnet')
+    nltk.download('punkt', quiet=True)
+    nltk.download('stopwords', quiet=True)
+    nltk.download('averaged_perceptron_tagger', quiet=True)
+    nltk.download('wordnet', quiet=True)
 
 
 class TextNormalizer(BaseEstimator, TransformerMixin):
