@@ -1,20 +1,23 @@
 import sys
+import os
 import re
 import html
 import unicodedata
 import string
 from typing import List, Tuple
 import nltk
+from contextlib import redirect_stdout
 from nltk.corpus import stopwords, wordnet
 from nltk.stem import WordNetLemmatizer
 from nltk.stem.snowball import SnowballStemmer
 from nltk.tokenize import RegexpTokenizer
 from sklearn.base import BaseEstimator, TransformerMixin
 
-nltk.download('punkt')
-nltk.download('stopwords')
-nltk.download('averaged_perceptron_tagger')
-nltk.download('wordnet')
+with redirect_stdout(open(os.devnull, "w")):
+    nltk.download('punkt')
+    nltk.download('stopwords')
+    nltk.download('averaged_perceptron_tagger')
+    nltk.download('wordnet')
 
 
 class TextNormalizer(BaseEstimator, TransformerMixin):
